@@ -6,6 +6,11 @@ typedef struct {
     size_t length;
 } tweet_vector;
 
+typedef struct {
+    size_t numCols;
+    size_t nameIndex;
+} header_info;
+
 tweet_vector getTweets(FILE* fPtr);
 
 #endif
