@@ -1,6 +1,8 @@
 #ifndef COLLECT_H
 #define COLLECT_H
 
+#include <stddef.h>
+
 typedef struct {
     char* name;
     unsigned int count;
@@ -11,6 +13,6 @@ typedef struct {
     size_t length;
 } collected_tweets;
 
-collected_tweets* collectTweets(char** rows, size_t n_rows);
+collected_tweets collectTweets(char** rows, size_t n_rows);
 
 #endif

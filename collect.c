@@ -4,11 +4,11 @@
 
 void die();
 
-int name_sort(void* a, void* b) {
-    return strcmp((char*)a, (char*)b);
+int name_sort(const void* a, const void* b) {
+    return strcmp(a, b);
 }
 
-collected_tweets* collectTweets(char** names, size_t n_rows) {
+collected_tweets collectTweets(char** names, size_t n_rows) {
 
     // the tweet at this index in tweeters is uninitialized
     size_t index = 0, t_size = 1;
@@ -56,9 +56,7 @@ collected_tweets* collectTweets(char** names, size_t n_rows) {
     t->count = prev_count;
     t->name = prev_name;
     
-    collected_tweets *returnval = (collected_tweets*)malloc(sizeof(collected_tweets));
-    returnval->tweeters = tweeters;
-    returnval->length = index;
+    collected_tweets returnval = {tweeters, index};
 
     return returnval;    
 }
