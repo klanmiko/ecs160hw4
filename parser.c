@@ -7,35 +7,40 @@
 
 void die();
 char* readName(char* line, size_t numCols, size_t nameIndex);
-header_info readHeader(char* line);
+header_info readHeader(char* line, bool linesQuoted);
 
 tweet_vector getTweets(FILE* fPtr) {
+    // header parsing variables
     char* header = NULL;
     size_t headerLen = 0, numCols = 0, nameIndex = 0;
     size_t nread;
-    char* line = NULL;
-    size_t len = 0;
-    size_t numTweets = 0;
 
-    char** tweets = (char**)malloc(sizeof(char*));
-    size_t index = 0, tweets_size = 1;
-    
+    bool linesQuoted;
+
     // Read the header
     if ((nread = getline(&header, &headerLen, fPtr)) > 0) {
-        header_info info = readHeader(header);
+        linesQuoted = checkQuotation(header);
+        header_info info = readHeaderQuick(header, linesQuoted);
         numCols = info.numCols;
         nameIndex = info.nameIndex;
     } else {
         die();
     }
 
-    while ((nread = getline(&line, &len, fPtr)) > 0) {
-        char* name = readName(line, numCols, nameIndex);
+    char* line = NULL;
+    size_t len = 0;
+    size_t numTweets = 0;
 
-        // if name == NULL, do something
-        if (!name) {
-            die(); // I don't think name should ever be NULL
+    char** tweets = (char**)malloc(sizeof(char*));
+    size_t index = 0, tweets_size = 1;
+
+
+    while ((nread = getline(&line, &len, fPtr)) > 0) {
+        if(checkQuotation(line) != linesQuoted) {
+            die();
         }
+
+        char* name = readName(line, numCols, nameIndex);
 
         tweets[index] = name;
         numTweets++;
@@ -53,7 +58,45 @@ tweet_vector getTweets(FILE* fPtr) {
     return names;
 }
 
-header_info readHeader(char* line) {
+header_info readHeaderQuick(char* line, bool nameQuoted) {
+    // Check whether the columns should be quoted
+    char c;
+    size_t i = 0;
+    while((c = line[i]) != ',' && c != '\0') { i++; }
+
+    char* name = strstr(line, "name");
+
+    // check there isn't another name column
+    if(strstr(name + strlen("name"), "name") != NULL) {
+        die();
+    }
+
+    size_t columnCount = 0, nameIndex = 0;
+    size_t length = strlen(line);
+    size_t index = name - line;
+
+    for(size_t i = 0; i < length; i++) {
+        if(line[i] == ',') {
+            columnCount++;
+        }
+        if(i == index) {
+            nameIndex = columnCount;
+        }
+    }
+    
+    header_info info = {columnCount, nameIndex};
+    return info;
+}
+
+
+/* returns true if all values are quoted, false otherwise
+    calls die() if only some are quoted */
+
+bool checkQuotation(char* line) {
+    
+}   
+
+header_info readHeader(char* line, bool nameQuoted) {
     size_t numCols = 0, i = 0, nameIndex = 0;
     char c;
     char* currCol = (char*)malloc(sizeof(char));
