@@ -40,6 +40,9 @@ collected_tweets collectTweets(char **names, size_t n_rows)
 
                 size_t l = strlen(prev_name) + 1;
                 t->name = (char*)malloc(sizeof(char) * l);
+
+                if(t->name == NULL) die();
+
                 strncpy(t->name, prev_name, l);
 
                 // if the next free index = the size, resize the array to 2n + 1
@@ -70,6 +73,9 @@ collected_tweets collectTweets(char **names, size_t n_rows)
 
     size_t l = strlen(prev_name) + 1;
     t->name = (char*)malloc(sizeof(char) * l);
+    
+    if(t->name == NULL) die();
+
     strncpy(t->name, prev_name, l);
 
     collected_tweets returnval = {tweeters, index};

@@ -37,6 +37,8 @@ tweet_vector getTweets(FILE* fPtr) {
     size_t numTweets = 0;
 
     char** tweets = (char**)malloc(sizeof(char*));
+    if(tweets == NULL) die();
+
     size_t index = 0, tweets_size = 1;
 
 
@@ -55,6 +57,8 @@ tweet_vector getTweets(FILE* fPtr) {
 
         if(index == tweets_size) {
             tweets = (char**)realloc(tweets, (tweets_size * 2 + 1)*sizeof(char*));
+            if(tweets == NULL) die();
+
             tweets_size = tweets_size * 2 + 1;
         }
     }
@@ -204,6 +208,9 @@ char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
 
     int length = endNameIndex - startNameIndex + 1;
     char* name = (char*)malloc(sizeof(char)*length);
+    if(name == NULL) {
+        die();
+    }
     
     strncpy(name, &line[startNameIndex], length - 1);
 
@@ -212,6 +219,7 @@ char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
     return name;
 }
 
+/*
 header_info readHeader(char* line, bool nameQuoted) {
     size_t numCols = 0, i = 0, nameIndex = 0;
     char c;
@@ -275,3 +283,4 @@ header_info readHeader(char* line, bool nameQuoted) {
     header_info info = {numCols, nameIndex};
     return info;
 }
+*/
