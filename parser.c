@@ -152,7 +152,7 @@ bool checkQuotation(char* line) {
         }
     }
 
-    
+    return isQuoted;
 }
 
 char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
