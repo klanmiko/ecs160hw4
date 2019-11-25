@@ -41,13 +41,22 @@ int main(int argc, char* argv[]) {
 
     tweet_vector rows = getTweets(csvFile);
     collected_tweets tweets = collectTweets(rows.tweets, rows.length);
+
+    for(size_t i = 0; i < rows.length; i++) {
+      free(rows.tweets[i]);
+    }
+    free(rows.tweets);
     
     qsort(tweets.tweeters, tweets.length, sizeof(tweet_count), compareTweet);
 
     for(size_t i = 0; i < tweets.length; i++) {
       tweet_count t = tweets.tweeters[i];
-      printf("%s, %s\n", t.name, t.count);
+      printf("%s, %d\n", t.name, t.count);
+      free(t.name);
     }
+
+    free(tweets.tweeters);
+    fclose(csvFile);
 
     return 0;
 }

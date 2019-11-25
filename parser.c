@@ -6,19 +6,24 @@
 #include "parser.h"
 
 void die();
-char* readName(char* line, size_t numCols, size_t nameIndex);
-header_info readHeader(char* line, bool linesQuoted);
+char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted);
+header_info readHeaderQuick(char* line, bool linesQuoted);
+bool checkQuotation(char* line);
 
 tweet_vector getTweets(FILE* fPtr) {
     // header parsing variables
     char* header = NULL;
     size_t headerLen = 0, numCols = 0, nameIndex = 0;
-    size_t nread;
+    __ssize_t nread;
 
     bool linesQuoted;
 
     // Read the header
-    if ((nread = getline(&header, &headerLen, fPtr)) > 0) {
+    if ((nread = getline(&header, &headerLen, fPtr)) != -1) {
+        size_t length = strlen(header);
+
+        if(header[length - 1] == '\n') header[length - 1] = '\0';
+
         linesQuoted = checkQuotation(header);
         header_info info = readHeaderQuick(header, linesQuoted);
         numCols = info.numCols;
@@ -35,12 +40,14 @@ tweet_vector getTweets(FILE* fPtr) {
     size_t index = 0, tweets_size = 1;
 
 
-    while ((nread = getline(&line, &len, fPtr)) > 0) {
+    while ((nread = getline(&line, &len, fPtr)) != -1) {
+        size_t length = strlen(line);
+        if(line[length - 1] == '\n') line[length - 1] = '\0';
         if(checkQuotation(line) != linesQuoted) {
             die();
         }
 
-        char* name = readName(line, numCols, nameIndex);
+        char* name = readName(line, numCols, nameIndex, linesQuoted);
 
         tweets[index] = name;
         numTweets++;
@@ -50,24 +57,44 @@ tweet_vector getTweets(FILE* fPtr) {
             tweets = (char**)realloc(tweets, (tweets_size * 2 + 1)*sizeof(char*));
             tweets_size = tweets_size * 2 + 1;
         }
-
     }
+
+    free(line);
+    free(header);
 
     tweet_vector names = {tweets, numTweets};
 
     return names;
 }
 
+char* findName(char* line, bool nameQuoted) {
+    char* name = NULL;
+    while(name = strstr(line, "name")) {
+        size_t start_index = name - line;
+        size_t end_index = start_index + strlen("name");
+
+        if(nameQuoted) {
+            start_index--;
+            end_index++;    
+        }
+
+        if((start_index == 0 || line[start_index - 1] == ',') && (line[end_index] == ',' || line[end_index] == '\0')) {
+            return name;
+        }
+
+        line = &line[end_index];
+    }
+    
+    return NULL;    
+}
+
 header_info readHeaderQuick(char* line, bool nameQuoted) {
-    // Check whether the columns should be quoted
-    char c;
-    size_t i = 0;
-    while((c = line[i]) != ',' && c != '\0') { i++; }
-
-    char* name = strstr(line, "name");
-
+    char* name = findName(line, nameQuoted);
+    if(name == NULL) {
+        die();
+    }
     // check there isn't another name column
-    if(strstr(name + strlen("name"), "name") != NULL) {
+    if(findName(name + strlen("name"), nameQuoted) != NULL) {
         die();
     }
 
@@ -93,8 +120,97 @@ header_info readHeaderQuick(char* line, bool nameQuoted) {
     calls die() if only some are quoted */
 
 bool checkQuotation(char* line) {
+    bool isQuoted = false;
+    bool readNewField = true;
+    size_t startIndex = 0, endIndex;
+    bool isFirstFieldQuoted = false;
+    char c;
+    for (size_t i = 0; i < strlen(line) + 1; i++) {
+        if (line[i] == ',' || line[i] == '\0') {
+            endIndex = i - 1;
+            // if the current field is quoted
+            if (line[startIndex] == '\"' && line[endIndex] == '\"') {
+                if (startIndex == 0) {
+                    isQuoted = true;
+                }
+                if (!isQuoted) {
+                    die();
+                }
+            } else { // if the current field is not quoted
+                if (line[startIndex] == '\"' || line[endIndex] == '\"') {
+                    die();
+                }
+                if (startIndex == 0) {
+                    isQuoted = false;
+                }
+                if (isQuoted) {
+                    die();
+                }
+            }
+
+            startIndex = i + 1;
+        }
+    }
+
     
-}   
+}
+
+char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
+    size_t i = 0;
+    char c;
+    size_t numColsSeen = 0;
+    size_t startNameIndex = 0;
+    size_t endNameIndex = 0;
+    bool inNameCol = false;
+
+    while ((c = line[i]) != '\0') {
+        if (numColsSeen == nameIndex && !inNameCol) {
+            startNameIndex = i;
+            inNameCol = true;
+        }
+
+        if (c == ',') {
+            numColsSeen++;
+            if (inNameCol == true) {
+                inNameCol = false;
+                endNameIndex = i;
+            }
+        }
+
+        // ,"a", -> a
+        // ,a", -> INVALID
+        // ,a"a, -> a"a
+        // ,""a"", -> "a"
+        // ,, -> name is an empty string, still counts
+        i++;
+    }
+
+    if(inNameCol) {
+        endNameIndex = i;
+    }
+
+    if (numColsSeen != numCols) {
+        die();
+    }
+
+    if(nameQuoted) {
+        endNameIndex -= 1;
+        startNameIndex += 1;
+    }
+    
+    if(endNameIndex < startNameIndex) {
+        die();
+    }
+
+    int length = endNameIndex - startNameIndex + 1;
+    char* name = (char*)malloc(sizeof(char)*length);
+    
+    strncpy(name, &line[startNameIndex], length - 1);
+
+    name[length - 1] = '\0'; // Append the null character to the end of the name
+
+    return name;
+}
 
 header_info readHeader(char* line, bool nameQuoted) {
     size_t numCols = 0, i = 0, nameIndex = 0;
@@ -158,56 +274,4 @@ header_info readHeader(char* line, bool nameQuoted) {
     // Return a struct containing the number of columns and index of name col
     header_info info = {numCols, nameIndex};
     return info;
-}
-
-char* readName(char* line, size_t numCols, size_t nameIndex) {
-    size_t i = 0;
-    char c;
-    size_t numColsSeen = 0;
-    size_t startNameIndex = 0;
-    size_t endNameIndex = 0;
-    bool inNameCol = false;
-
-    while ((c = line[i]) != '\0') {
-        if (numColsSeen == nameIndex) {
-            startNameIndex = i;
-            inNameCol = true;
-        }
-
-        if (c == ',') {
-            numColsSeen++;
-            if (inNameCol == true) {
-                inNameCol = false;
-                endNameIndex = i;
-            }
-        }
-
-        // ,"a", -> a
-        // ,a", -> a"
-        // ,a"a, -> a"a
-        // ,""a"", -> "a"
-        // ,, -> name is an empty string, still counts
-        i++;
-    }
-
-    if(inNameCol) {
-        endNameIndex = i;
-    }
-
-    if (numColsSeen != numCols) {
-        die();
-    }
-
-    int length = endNameIndex - startNameIndex + 1;
-    char* name = (char*)malloc(sizeof(char)*length);
-    
-    if(strncpy(name, &line[startNameIndex], length) != length) {
-        fprintf(stderr, 
-            "null character in middle of name column: %s, line: %s, srcline: %s", 
-            name, line, __LINE__);
-    }
-
-    name[length - 1] = '\0'; // Append the null character to the end of the name
-
-    return name;
 }

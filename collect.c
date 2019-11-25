@@ -4,59 +4,75 @@
 
 void die();
 
-int name_sort(const void* a, const void* b) {
+int name_sort(const void *a, const void *b)
+{
     return strcmp(a, b);
 }
 
-collected_tweets collectTweets(char** names, size_t n_rows) {
+collected_tweets collectTweets(char **names, size_t n_rows)
+{
 
     // the tweet at this index in tweeters is uninitialized
     size_t index = 0, t_size = 1;
-    tweet_count* tweeters = (tweet_count*)malloc(sizeof(tweet_count));
+    tweet_count *tweeters = (tweet_count *)malloc(sizeof(tweet_count));
 
-    if(n_rows == 0 && tweeters == NULL) {
+    if (n_rows == 0 && tweeters == NULL)
+    {
         die();
     }
 
-
-    qsort(names, n_rows, sizeof(char*), name_sort);
-    char* prev_name = NULL;
+    qsort(names, n_rows, sizeof(char *), name_sort);
+    char *prev_name = NULL;
     size_t prev_count = 1;
 
     // iterate over the rows
-    for(size_t i = 0; i < n_rows; i++) {
-        char* name = names[i];
+    for (size_t i = 0; i < n_rows; i++)
+    {
+        char *name = names[i];
 
         // if a new name is seen, record count to array
-        if(strcmp(name, prev_name) != 0 && prev_name != NULL) {
-            tweet_count* t = &(tweeters[index++]);
-            t->count = prev_count;
-            t->name = prev_name;
+        if (prev_name != NULL)
+        {
+            if (strcmp(name, prev_name) != 0)
+            {
+                tweet_count *t = &(tweeters[index++]);
+                t->count = prev_count;
 
-            // if the next free index = the size, resize the array to 2n + 1
-            if(index == t_size) {
-                tweeters = (tweet_count*) realloc(tweeters, (t_size * 2 + 1) * sizeof(tweet_count));
-                t_size = t_size * 2 + 1;
+                size_t l = strlen(prev_name) + 1;
+                t->name = (char*)malloc(sizeof(char) * l);
+                strncpy(t->name, prev_name, l);
 
-                if(tweeters == NULL) {
-                    die();
+                // if the next free index = the size, resize the array to 2n + 1
+                if (index == t_size)
+                {
+                    tweeters = (tweet_count *)realloc(tweeters, (t_size * 2 + 1) * sizeof(tweet_count));
+                    t_size = t_size * 2 + 1;
+
+                    if (tweeters == NULL)
+                    {
+                        die();
+                    }
                 }
+
+                prev_count = 1;
             }
-
-            prev_count = 1;
-
-        } else if(strcmp(name, prev_name) == 0){
-            prev_count++;
+            else if (strcmp(name, prev_name) == 0)
+            {
+                prev_count++;
+            }
         }
 
         prev_name = name;
     }
 
-    tweet_count* t = &(tweeters[index++]);
+    tweet_count *t = &(tweeters[index++]);
     t->count = prev_count;
-    t->name = prev_name;
-    
+
+    size_t l = strlen(prev_name) + 1;
+    t->name = (char*)malloc(sizeof(char) * l);
+    strncpy(t->name, prev_name, l);
+
     collected_tweets returnval = {tweeters, index};
 
-    return returnval;    
+    return returnval;
 }
