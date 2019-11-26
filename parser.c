@@ -131,7 +131,7 @@ bool checkQuotation(char* line) {
         if (line[i] == ',' || line[i] == '\0') {
             endIndex = i - 1;
             // if the current field is quoted
-            if (line[startIndex] == '\"' && line[endIndex] == '\"') {
+            if (line[startIndex] == '\"' && line[endIndex] == '\"' && startIndex != endIndex) {
                 if (startIndex == 0) {
                     isQuoted = true;
                 }
