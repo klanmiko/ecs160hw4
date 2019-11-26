@@ -6,9 +6,6 @@
 #include "parser.h"
 
 void die();
-char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted);
-header_info readHeaderQuick(char* line, bool linesQuoted);
-bool checkQuotation(char* line);
 
 tweet_vector getTweets(FILE* fPtr) {
     // header parsing variables
@@ -29,6 +26,7 @@ tweet_vector getTweets(FILE* fPtr) {
         numCols = info.numCols;
         nameIndex = info.nameIndex;
     } else {
+        // If there is no header, then die
         die();
     }
 
@@ -132,7 +130,7 @@ bool checkQuotation(char* line) {
     for (size_t i = 0; i < strlen(line) + 1; i++) {
         if (line[i] == ',' || line[i] == '\0') {
             endIndex = i - 1;
-            // if the current field is quoted
+            // If the current field is quoted
             if (line[startIndex] == '\"' && line[endIndex] == '\"') {
                 if (startIndex == 0) {
                     isQuoted = true;
@@ -140,7 +138,7 @@ bool checkQuotation(char* line) {
                 if (!isQuoted) {
                     die();
                 }
-            } else { // if the current field is not quoted
+            } else { // If the current field is not quoted
                 if (line[startIndex] == '\"' || line[endIndex] == '\"') {
                     die();
                 }
