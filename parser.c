@@ -5,6 +5,9 @@
 
 #include "parser.h"
 
+#define STRIP_NEWLINE(s) { size_t l = strlen(s); \
+    if(s[l - 1] == '\n') s[l - 1] = '\0'; }
+
 void die();
 char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted);
 header_info readHeaderQuick(char* line, bool linesQuoted);
@@ -12,50 +15,43 @@ bool checkQuotation(char* line);
 
 tweet_vector getTweets(FILE* fPtr) {
     // header parsing variables
-    char* header = NULL;
-    size_t headerLen = 0, numCols = 0, nameIndex = 0;
+    char* line = NULL;
+    size_t len = 0;
+
+    size_t numCols = 0, nameIndex = 0;
     __ssize_t nread;
 
     bool linesQuoted;
 
     // Read the header
-    if ((nread = getline(&header, &headerLen, fPtr)) != -1) {
-        size_t length = strlen(header);
+    if ((nread = getline(&line, &len, fPtr)) != -1) {
+        STRIP_NEWLINE(line)
 
-        if(header[length - 1] == '\n') header[length - 1] = '\0';
-
-        linesQuoted = checkQuotation(header);
-        header_info info = readHeaderQuick(header, linesQuoted);
+        linesQuoted = checkQuotation(line);
+        header_info info = readHeaderQuick(line, linesQuoted);
         numCols = info.numCols;
         nameIndex = info.nameIndex;
     } else {
         die();
     }
 
-    char* line = NULL;
-    size_t len = 0;
-    size_t numTweets = 0;
-
     char** tweets = (char**)malloc(sizeof(char*));
     if(tweets == NULL) die();
 
-    size_t index = 0, tweets_size = 1;
-
+    size_t numTweets = 0, tweets_size = 1;
 
     while ((nread = getline(&line, &len, fPtr)) != -1) {
-        size_t length = strlen(line);
-        if(line[length - 1] == '\n') line[length - 1] = '\0';
+        STRIP_NEWLINE(line)
+
         if(checkQuotation(line) != linesQuoted) {
             die();
         }
 
         char* name = readName(line, numCols, nameIndex, linesQuoted);
 
-        tweets[index] = name;
-        numTweets++;
-        index++;
+        tweets[numTweets++] = name;
 
-        if(index == tweets_size) {
+        if(numTweets == tweets_size) {
             tweets = (char**)realloc(tweets, (tweets_size * 2 + 1)*sizeof(char*));
             if(tweets == NULL) die();
 
@@ -64,7 +60,6 @@ tweet_vector getTweets(FILE* fPtr) {
     }
 
     free(line);
-    free(header);
 
     tweet_vector names = {tweets, numTweets};
 
@@ -161,12 +156,13 @@ bool checkQuotation(char* line) {
 
 char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
     size_t i = 0;
-    char c;
     size_t numColsSeen = 0;
     size_t startNameIndex = 0;
     size_t endNameIndex = 0;
     bool inNameCol = false;
 
+
+    char c;
     while ((c = line[i]) != '\0') {
         if (numColsSeen == nameIndex && !inNameCol) {
             startNameIndex = i;
