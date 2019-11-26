@@ -80,5 +80,8 @@ collected_tweets collectTweets(char **names, size_t n_rows)
 
     collected_tweets returnval = {tweeters, index};
 
+    // If there are more 20,000 lines in the CSV, die
+    if(index>19999) die();
+
     return returnval;
 }

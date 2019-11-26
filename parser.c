@@ -28,6 +28,7 @@ tweet_vector getTweets(FILE* fPtr) {
         STRIP_NEWLINE(line)
 
         linesQuoted = checkQuotation(line);
+        checkLineLength(len);
         header_info info = readHeaderQuick(line, linesQuoted);
         numCols = info.numCols;
         nameIndex = info.nameIndex;
@@ -42,6 +43,8 @@ tweet_vector getTweets(FILE* fPtr) {
 
     while ((nread = getline(&line, &len, fPtr)) != -1) {
         STRIP_NEWLINE(line)
+        
+        checkLineLength(len);
 
         if(checkQuotation(line) != linesQuoted) {
             die();
@@ -152,6 +155,12 @@ bool checkQuotation(char* line) {
     }
 
     return isQuoted;
+}
+
+void checkLineLength(size_t len) {
+    if (len > 1024) {
+        die();
+    }
 }
 
 char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {

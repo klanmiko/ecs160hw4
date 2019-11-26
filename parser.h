@@ -13,4 +13,6 @@ typedef struct {
 
 tweet_vector getTweets(FILE* fPtr);
 
+void checkLineLength(size_t len);
+
 #endif
