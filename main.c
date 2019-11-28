@@ -33,7 +33,7 @@ FILE* getFile(char* filePath) {
 */
 int compareTweet(const void* a, const void* b) {
   const tweet_count *first = a, *second = b;
-  return first->count - second->count;
+  return second->count - first->count;
 }
 
 int main(int argc, char* argv[]) {
@@ -58,8 +58,10 @@ int main(int argc, char* argv[]) {
     // Sorts tweeters according to their tweet count
     qsort(tweets.tweeters, tweets.length, sizeof(tweet_count), compareTweet);
 
+    int top = tweets.length < 10 ? tweets.length : 10;
+
     // Print out the top tweeters and their tweet counts
-    for(size_t i = 0; i < tweets.length; i++) {
+    for(size_t i = 0; i < top; i++) {
       tweet_count t = tweets.tweeters[i];
       printf("%s: %d\n", t.name, t.count);
       free(t.name);
