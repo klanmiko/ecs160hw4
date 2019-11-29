@@ -10,8 +10,8 @@
 
 void die();
 char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted);
-header_info readHeaderQuick(char* line, bool linesQuoted);
-bool checkQuotation(char* line);
+header_info readHeaderQuick(char* line);
+void checkQuotation(char* line, size_t numCols, bool* columnsQuoted);
 
 tweet_vector getTweets(FILE* fPtr) {
     // header parsing variables
@@ -21,17 +21,19 @@ tweet_vector getTweets(FILE* fPtr) {
     size_t numCols = 0, nameIndex = 0;
     __ssize_t nread;
 
-    bool linesQuoted;
+    bool *columnsQuoted;
 
     // Read the header
     if ((nread = getline(&line, &len, fPtr)) != -1) {
         STRIP_NEWLINE(line)
 
-        linesQuoted = checkQuotation(line);
-        checkLineLength(len);
-        header_info info = readHeaderQuick(line, linesQuoted);
+        checkQuotation(line, 0, NULL);
+        checkLineLength(nread);
+
+        header_info info = readHeaderQuick(line);
         numCols = info.numCols;
         nameIndex = info.nameIndex;
+        columnsQuoted = info.columnsQuoted;
     } else {
         die();
     }
@@ -44,13 +46,10 @@ tweet_vector getTweets(FILE* fPtr) {
     while ((nread = getline(&line, &len, fPtr)) != -1) {
         STRIP_NEWLINE(line)
         
-        checkLineLength(len);
+        checkLineLength(nread);
+        checkQuotation(line, numCols, columnsQuoted);
 
-        if(checkQuotation(line) != linesQuoted) {
-            die();
-        }
-
-        char* name = readName(line, numCols, nameIndex, linesQuoted);
+        char* name = readName(line, numCols, nameIndex, columnsQuoted[nameIndex]);
 
         tweets[numTweets++] = name;
 
@@ -62,20 +61,23 @@ tweet_vector getTweets(FILE* fPtr) {
         }
     }
 
+    if(numTweets >= 20000) die();
+
     free(line);
+    free(columnsQuoted);
 
     tweet_vector names = {tweets, numTweets};
 
     return names;
 }
 
-char* findName(char* line, bool nameQuoted) {
+char* findName(char* line) {
     char* name = NULL;
     while(name = strstr(line, "name")) {
         size_t start_index = name - line;
         size_t end_index = start_index + strlen("name");
 
-        if(nameQuoted) {
+        if(start_index > 0 && line[start_index - 1 ] == '"') {
             start_index--;
             end_index++;    
         }
@@ -90,30 +92,48 @@ char* findName(char* line, bool nameQuoted) {
     return NULL;    
 }
 
-header_info readHeaderQuick(char* line, bool nameQuoted) {
-    char* name = findName(line, nameQuoted);
+// assumes checkQuotation has run
+header_info readHeaderQuick(char* line) {
+    char* name = findName(line);
     if(name == NULL) {
         die();
     }
     // check there isn't another name column
-    if(findName(name + strlen("name"), nameQuoted) != NULL) {
+    if(findName(name + strlen("name")) != NULL) {
         die();
     }
 
-    size_t columnCount = 0, nameIndex = 0;
-    size_t length = strlen(line);
+    size_t columnCount = 0, nameIndex = 0, startIndex = 0;
+    size_t length = strlen(line) + 1;
     size_t index = name - line;
 
+    bool* columnsQuoted = (bool*)malloc(sizeof(bool));
+    size_t b_size = 1;
+
     for(size_t i = 0; i < length; i++) {
-        if(line[i] == ',') {
+        if(line[i] == ',' || line[i] == '\0') {
+            if(line[i - 1] == '"' && line[startIndex] == '"') {
+                columnsQuoted[columnCount] = true;
+            } else {
+                columnsQuoted[columnCount] = false;
+            }
+
+            startIndex = i + 1;
             columnCount++;
+
+            if(columnCount == b_size && i != length - 1) {
+                columnsQuoted = realloc(columnsQuoted, (2 * b_size + 1) * sizeof(bool));
+                if(!columnsQuoted) die();
+
+                b_size = 2*b_size + 1;
+            }
         }
         if(i == index) {
             nameIndex = columnCount;
         }
     }
     
-    header_info info = {columnCount, nameIndex};
+    header_info info = {columnCount, nameIndex, columnsQuoted};
     return info;
 }
 
@@ -121,43 +141,33 @@ header_info readHeaderQuick(char* line, bool nameQuoted) {
 /* returns true if all values are quoted, false otherwise
     calls die() if only some are quoted */
 
-bool checkQuotation(char* line) {
-    bool isQuoted = false;
-    bool readNewField = true;
-    size_t startIndex = 0, endIndex;
-    bool isFirstFieldQuoted = false;
+void checkQuotation(char* line, size_t numCols, bool* columnsQuoted) {
+    size_t startIndex = 0, colIdx = 0;
     char c;
     for (size_t i = 0; i < strlen(line) + 1; i++) {
         if (line[i] == ',' || line[i] == '\0') {
-            endIndex = i - 1;
+            size_t endIndex = i - 1;
             // if the current field is quoted
             if (line[startIndex] == '\"' && line[endIndex] == '\"' && startIndex != endIndex) {
-                if (startIndex == 0) {
-                    isQuoted = true;
-                }
-                if (!isQuoted) {
+                if (columnsQuoted && (colIdx == numCols || !columnsQuoted[colIdx])) {
                     die();
                 }
             } else { // if the current field is not quoted
                 if (line[startIndex] == '\"' || line[endIndex] == '\"') {
                     die();
                 }
-                if (startIndex == 0) {
-                    isQuoted = false;
-                }
-                if (isQuoted) {
+                if (columnsQuoted && (colIdx == numCols || columnsQuoted[colIdx])) {
                     die();
                 }
             }
 
             startIndex = i + 1;
+            colIdx++;
         }
     }
-
-    return isQuoted;
 }
 
-void checkLineLength(size_t len) {
+void inline checkLineLength(size_t len) {
     if (len > 1024) {
         die();
     }
@@ -198,7 +208,7 @@ char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
         endNameIndex = i;
     }
 
-    if (numColsSeen != numCols) {
+    if (numColsSeen + 1 != numCols) {
         die();
     }
 
