@@ -112,7 +112,7 @@ header_info readHeaderQuick(char* line) {
 
     for(size_t i = 0; i < length; i++) {
         if(line[i] == ',' || line[i] == '\0') {
-            if(line[i - 1] == '"' && line[startIndex] == '"') {
+            if(i != 0 && line[i - 1] == '"' && line[startIndex] == '"') {
                 columnsQuoted[columnCount] = true;
             } else {
                 columnsQuoted[columnCount] = false;
@@ -147,17 +147,21 @@ void checkQuotation(char* line, size_t numCols, bool* columnsQuoted) {
     for (size_t i = 0; i < strlen(line) + 1; i++) {
         if (line[i] == ',' || line[i] == '\0') {
             size_t endIndex = i - 1;
-            // if the current field is quoted
-            if (line[startIndex] == '\"' && line[endIndex] == '\"' && startIndex != endIndex) {
-                if (columnsQuoted && (colIdx == numCols || !columnsQuoted[colIdx])) {
-                    die();
-                }
-            } else { // if the current field is not quoted
-                if (line[startIndex] == '\"' || line[endIndex] == '\"') {
-                    die();
-                }
-                if (columnsQuoted && (colIdx == numCols || columnsQuoted[colIdx])) {
-                    die();
+            
+            // check that the field is not ,,
+            if(!(endIndex == -1 || endIndex < startIndex)) {
+                // if the current field is quoted
+                if (line[startIndex] == '\"' && line[endIndex] == '\"' && startIndex != endIndex) {
+                    if (columnsQuoted && (colIdx == numCols || !columnsQuoted[colIdx])) {
+                        die();
+                    }
+                } else { // if the current field is not quoted
+                    if (line[startIndex] == '\"' || line[endIndex] == '\"') {
+                        die();
+                    }
+                    if (columnsQuoted && (colIdx == numCols || columnsQuoted[colIdx])) {
+                        die();
+                    }
                 }
             }
 
