@@ -1,10 +1,11 @@
 CFLAGS = -O0 -g
+CC = gcc
 
 main: main.c parser.o collect.o
-	gcc $(CFLAGS) -o main main.c parser.o collect.o
+	$(CC) $(CFLAGS) -o main main.c parser.o collect.o
 
 %.o: %.c
-	gcc $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f main *.o
