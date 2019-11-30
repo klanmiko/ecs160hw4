@@ -1,4 +1,4 @@
-CFLAGS = -O0 -g
+CFLAGS = -DDEBUG -O0 -g
 
 main: main.c parser.o collect.o
 	gcc $(CFLAGS) -o main main.c parser.o collect.o

@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
-void die();
+void die(char* reason);
 
 int name_sort(const void *a, const void *b)
 {
@@ -19,7 +19,7 @@ collected_tweets collectTweets(char **names, size_t n_rows)
 
     if (n_rows == 0 && tweeters == NULL)
     {
-        die();
+        die("There are no tweeters or failed to allocate space for tweeters\n");
     }
 
     qsort(names, n_rows, sizeof(char *), name_sort);
@@ -41,7 +41,7 @@ collected_tweets collectTweets(char **names, size_t n_rows)
                 size_t l = strlen(prev_name) + 1;
                 t->name = (char*)malloc(sizeof(char) * l);
 
-                if(t->name == NULL) die();
+                if(t->name == NULL) die("Failed to allocate space for name of tweet\n");
 
                 strncpy(t->name, prev_name, l);
 
@@ -53,7 +53,7 @@ collected_tweets collectTweets(char **names, size_t n_rows)
 
                     if (tweeters == NULL)
                     {
-                        die();
+                        die("Failed to reallocate space for tweeters\n");
                     }
                 }
 
@@ -74,7 +74,7 @@ collected_tweets collectTweets(char **names, size_t n_rows)
     size_t l = strlen(prev_name) + 1;
     t->name = (char*)malloc(sizeof(char) * l);
     
-    if(t->name == NULL) die();
+    if(t->name == NULL) die("Failed to allocate space for name of tweet\n");
 
     strncpy(t->name, prev_name, l);
 

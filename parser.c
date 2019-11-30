@@ -8,7 +8,7 @@
 #define STRIP_NEWLINE(s) { size_t l = strlen(s); \
     if(s[l - 1] == '\n') s[l - 1] = '\0'; }
 
-void die();
+void die(char* reason);
 char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted);
 header_info readHeaderQuick(char* line);
 void checkQuotation(char* line, size_t numCols, bool* columnsQuoted);
@@ -35,11 +35,11 @@ tweet_vector getTweets(FILE* fPtr) {
         nameIndex = info.nameIndex;
         columnsQuoted = info.columnsQuoted;
     } else {
-        die();
+        die("Failed to read header\n");
     }
 
     char** tweets = (char**)malloc(sizeof(char*));
-    if(tweets == NULL) die();
+    if(tweets == NULL) die("Failed to allocate size for tweets\n");
 
     size_t numTweets = 0, tweets_size = 1;
 
@@ -55,13 +55,13 @@ tweet_vector getTweets(FILE* fPtr) {
 
         if(numTweets == tweets_size) {
             tweets = (char**)realloc(tweets, (tweets_size * 2 + 1)*sizeof(char*));
-            if(tweets == NULL) die();
+            if(tweets == NULL) die("Failed to reallocate more space for tweets\n");
 
             tweets_size = tweets_size * 2 + 1;
         }
     }
 
-    if(numTweets >= 20000) die();
+    if(numTweets >= 20000) die("Number of rows in the CSV exceeds 20000\n");
 
     free(line);
     free(columnsQuoted);
@@ -96,11 +96,11 @@ char* findName(char* line) {
 header_info readHeaderQuick(char* line) {
     char* name = findName(line);
     if(name == NULL) {
-        die();
+        die("No name field found in header\n");
     }
     // check there isn't another name column
     if(findName(name + strlen("name")) != NULL) {
-        die();
+        die("Found duplicate name column in header\n");
     }
 
     size_t columnCount = 0, nameIndex = 0, startIndex = 0;
@@ -123,7 +123,7 @@ header_info readHeaderQuick(char* line) {
 
             if(columnCount == b_size && i != length - 1) {
                 columnsQuoted = realloc(columnsQuoted, (2 * b_size + 1) * sizeof(bool));
-                if(!columnsQuoted) die();
+                if(!columnsQuoted) die("Failed to reallocate space for boolean array columnsQuoted\n");
 
                 b_size = 2*b_size + 1;
             }
@@ -153,14 +153,14 @@ void checkQuotation(char* line, size_t numCols, bool* columnsQuoted) {
                 // if the current field is quoted
                 if (line[startIndex] == '\"' && line[endIndex] == '\"' && startIndex != endIndex) {
                     if (columnsQuoted && (colIdx == numCols || !columnsQuoted[colIdx])) {
-                        die();
+                        die("Current field is quoted but shouldn't be\n");
                     }
                 } else { // if the current field is not quoted
                     if (line[startIndex] == '\"' || line[endIndex] == '\"') {
-                        die();
+                        die("Current field has mismatched quotation marks\n");
                     }
                     if (columnsQuoted && (colIdx == numCols || columnsQuoted[colIdx])) {
-                        die();
+                        die("Current field isn't quoted but should be\n");
                     }
                 }
             }
@@ -173,7 +173,7 @@ void checkQuotation(char* line, size_t numCols, bool* columnsQuoted) {
 
 void inline checkLineLength(size_t len) {
     if (len > 1024) {
-        die();
+        die("Line is more than 1024 characters long\n");
     }
 }
 
@@ -213,7 +213,7 @@ char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
     }
 
     if (numColsSeen + 1 != numCols) {
-        die();
+        die("Line does not have the same number of columns as the header\n");
     }
 
     if(nameQuoted) {
@@ -222,13 +222,13 @@ char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
     }
     
     if(endNameIndex < startNameIndex) {
-        die();
+        die("Index of start of the name is greater than index of end of the name\n");
     }
 
     int length = endNameIndex - startNameIndex + 1;
     char* name = (char*)malloc(sizeof(char)*length);
     if(name == NULL) {
-        die();
+        die("Failed to allocate space for the name of line\n");
     }
     
     strncpy(name, &line[startNameIndex], length - 1);

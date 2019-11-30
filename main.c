@@ -8,7 +8,10 @@
 
 /* Prints that there is an invalid error and exits the program
   */
-void die() {
+void die(char* reason) {
+    #ifdef DEBUG
+    printf("%s", reason);
+    #endif
     printf(INVALID_ERROR);
     exit(EXIT_FAILURE);
 }
@@ -22,7 +25,7 @@ FILE* getFile(char* filePath) {
   FILE* filePtr = fopen(filePath, "r");
 
   if (filePtr == NULL) {
-      die();
+      die("Could not open file.");
   }
 
   return filePtr;
@@ -42,7 +45,7 @@ int main(int argc, char* argv[]) {
     if(argc == 2) {
         csvFile = getFile(argv[1]);
     } else {
-        die();
+        die("Usage: main <csvFile>");
     }
 
     // Creates a list of tweets containing rows of tweets
