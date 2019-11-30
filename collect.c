@@ -12,13 +12,16 @@ int name_sort(const void *a, const void *b)
 
 collected_tweets collectTweets(char **names, size_t n_rows)
 {
+    // no tweeters
+    if (n_rows == 0)
+    {
+        return (collected_tweets){NULL, 0};
+    }
 
     // the tweet at this index in tweeters is uninitialized
     size_t index = 0, t_size = 1;
     tweet_count *tweeters = (tweet_count *)malloc(sizeof(tweet_count));
-
-    if (n_rows == 0 && tweeters == NULL)
-    {
+    if(tweeters == NULL) {
         die();
     }
 
@@ -78,7 +81,5 @@ collected_tweets collectTweets(char **names, size_t n_rows)
 
     strncpy(t->name, prev_name, l);
 
-    collected_tweets returnval = {tweeters, index};
-
-    return returnval;
+    return (collected_tweets){tweeters, index};
 }
