@@ -6,7 +6,8 @@
 #include "parser.h"
 
 #define STRIP_NEWLINE(s) { size_t l = strlen(s); \
-    if(s[l - 1] == '\n') s[l - 1] = '\0'; }
+    if(l > 0 && s[l - 1] == '\n') s[l - 1] = '\0'; \
+    if(l > 1 && s[l - 2] == '\r') s[l - 2] = '\0'; }
 
 void die(char* reason);
 char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted);
