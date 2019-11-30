@@ -67,11 +67,14 @@ int main(int argc, char* argv[]) {
     for(size_t i = 0; i < top; i++) {
       tweet_count t = tweets.tweeters[i];
       printf("%s: %d\n", t.name, t.count);
-      free(t.name);
+    }
+
+    for(size_t i = 0; i < tweets.length; i++) {
+      free(tweets.tweeters[i].name);
     }
 
     // Free the tweeters and close file
-    free(tweets.tweeters);
+    if(tweets.tweeters != NULL) free(tweets.tweeters);
     fclose(csvFile);
 
     return 0;

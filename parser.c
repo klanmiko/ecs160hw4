@@ -67,6 +67,11 @@ tweet_vector getTweets(FILE* fPtr) {
     free(line);
     free(columnsQuoted);
 
+    if(numTweets == 0) {
+        free(tweets);
+        tweets = NULL;
+    }
+
     tweet_vector names = {tweets, numTweets};
 
     return names;
