@@ -15,44 +15,33 @@ def main():
     sp.run(["make", "clean"])
     sp.run(["make"])
 
-    print("-----Testing valid CSVs-----")
+    validPass, validFail = runTest(valid, "valid", "SUCCESS, CSV is valid", "FAILED, CSV is invalid")
+    invalidPass, invalidFail = runTest(invalid, "invalid", "SUCCESS, CSV is invalid", "FAILED, CSV is valid")
+    otherPass, otherFail = runTest(other, "other", "CSV is valid", "CSV is invalid")
 
-    for file in valid:
-        print("Running", file, end = " ")
+    print("-----Results-----")
+    printResults("valid", validPass, validFail, len(valid))
+    printResults("invalid", invalidPass, invalidFail, len(invalid))
+    printResults("other", otherPass, otherFail, len(other))
+
+   
+def runTest(files, validity, passMessage, failMessage):
+    print("-------------Testing", validity, "CSVs-------------")
+    passCount, failCount = 0, 0
+    valid = (validity == "valid" or validity == "other")
+    for file in files:
+        print("Running", file, "...", end =" ")
         process = sp.run(["main", "csvs/" + file], stdout=sp.PIPE)
 
-        if process.returncode == 0:
-            print("PASSED, CSV is valid")
-        else:
-            print("FAILED, CSV is invalid")
-        
-        print(process.stdout)
-
-    print("-----Testing invalid CSVs-----")
-
-    for file in invalid:
-        print("Running", file, end=" ")
-        process = sp.run(["main", "csvs/" + file], stdout=sp.PIPE)
-
-        if process.returncode != 0:
-            print("PASSED, CSV is not invalid")
-        else:
-            print("FAILED, CSV is valid")
-
-        print(process.stdout)
-
-    print("-----Testing other CSVs-----")
-
-    for file in other:
-        print("Running", file, end=" ")
-        process = sp.run(["main", "csvs/" + file], stdout=sp.PIPE)
-        
-        if process.returncode == 0:
-            print("Valid CSV")
+        if (process.returncode == 0 and valid) or (process.returncode != 0 and not valid):
+            print(passMessage)
+            passCount += 1
         else: 
-            print("Invalid CSV")
+            print(failMessage)
+            failCount += 1
 
         print(process.stdout)
+
         
 
 if __name__ == '__main__':
