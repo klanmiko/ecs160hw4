@@ -42,7 +42,15 @@ def runTest(files, validity, passMessage, failMessage):
 
         print(process.stdout)
 
-        
+        print("\n")
+
+    return passCount, failCount
+
+def printResults(validity, passCount, failCount, total):
+    print("For", total, validity, "files tested:")
+    print(passCount, "out of", total, "passed")
+    print(failCount, "out of", total, "failed")
+    print("\n")        
 
 if __name__ == '__main__':
     main()
