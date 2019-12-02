@@ -98,8 +98,58 @@ char* findName(char* line) {
     return NULL;    
 }
 
+// ,name,name
+// ,name,
+// name,,name
+
+bool checkDuplicates(char* line) {
+    size_t length = strlen(line) + 1;
+    char** headerFields = (char**)malloc(sizeof(char*));
+    size_t h_size = 1;
+    size_t fieldCount = 0;
+    for (size_t i = 0; i < length; i++) {
+        if (line[i] == ',') {
+            if (i == 0 || i + 1 == length || line[i + 1] == ',') {
+                headerFields[fieldCount] = NULL;
+            } else {
+                if (i + 1 >= length) {
+                    die("i went over range while checking for duplicates");
+                }
+
+                headerFields[fieldCount] = &(line[i + 1]);
+            }
+
+            fieldCount++;
+        }
+
+ 
+        } else if (line[i] == ',') {
+
+
+        }
+
+        for (size_t i = 0; i < fieldCount; i++) {
+            if (strcmp(headerFields[i], 
+        }
+        
+        if(h_size == fieldCount && i != length - 1) {
+                headerFields = realloc(headerFields, (2 * h_size + 1) * sizeof(char*));
+                if(!headerFields) die("Failed to reallocate space for boolean array headerFields\n");
+
+                h_size = 2*h_size + 1;
+        }
+
+    }
+
+    return false;
+}
+
 // assumes checkQuotation has run
 header_info readHeaderQuick(char* line) {
+    if (checkDuplicates(line)) {
+        die();
+    }
+
     char* name = findName(line);
     if(name == NULL) {
         die("No name field found in header\n");
