@@ -111,7 +111,7 @@ void checkDuplicates(char *line) {
     char* current = NULL;
     while((current = strsep(&copy, ","))) {
         size_t l = strlen(current);
-        if(l > 2 && current[0] == '"') {
+        if(l > 1 && *current == '"') {
             current[l - 1] = '\0';
             current++;
         }
