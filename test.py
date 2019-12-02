@@ -31,7 +31,7 @@ def runTest(files, validity, passMessage, failMessage):
     valid = (validity == "valid" or validity == "other")
     for file in files:
         print("Running", file, "...", end =" ")
-        process = sp.run(["main", "csvs/" + file], stdout=sp.PIPE)
+        process = sp.run(["./main", "csvs/" + file], stdout=sp.PIPE)
 
         if (process.returncode == 0 and valid) or (process.returncode != 0 and not valid):
             print(passMessage)

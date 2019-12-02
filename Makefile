@@ -1,4 +1,4 @@
-CFLAGS = -DDEBUG -O0 -g
+CFLAGS = -O3
 CC = gcc
 
 main: main.c parser.o collect.o
