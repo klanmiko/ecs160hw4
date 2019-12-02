@@ -9,7 +9,8 @@
     if(l > 0 && s[l - 1] == '\n') s[l - 1] = '\0'; \
     if(l > 1 && s[l - 2] == '\r') s[l - 2] = '\0'; }
 
-void die(char* reason);
+#include "util.h"
+
 char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted);
 header_info readHeaderQuick(char* line);
 void checkQuotation(char* line, size_t numCols, bool* columnsQuoted);
@@ -98,15 +99,48 @@ char* findName(char* line) {
     return NULL;    
 }
 
+void checkDuplicates(char *line) {
+    size_t l = strlen(line);
+    char* copy = malloc(sizeof(char) * (l + 1)), *t = copy;
+    strncpy(copy, line, l);
+    copy[l] = '\0';
+
+    size_t index = 0, size = 1;
+    char** columnNames = malloc(sizeof(char*) * size);
+
+    char* current = NULL;
+    while((current = strsep(&copy, ","))) {
+        size_t l = strlen(current);
+        if(l > 2 && current[0] == '"') {
+            current[l - 1] = '\0';
+            current++;
+        }
+
+        for(size_t i = 0; i < index; i++) {
+            if(strcmp(current, columnNames[i]) == 0) {
+                die("Duplicate column names");
+            }
+        }
+
+        columnNames[index++] = current;
+        if(index == size) {
+            columnNames = realloc(columnNames, sizeof(char*) * (2*size + 1));
+            size = 2*size + 1;
+        }
+    }
+
+    free(columnNames);
+    free(t);
+}
+
 // assumes checkQuotation has run
 header_info readHeaderQuick(char* line) {
+    // check duplicates
+    checkDuplicates(line);
+    
     char* name = findName(line);
     if(name == NULL) {
         die("No name field found in header\n");
-    }
-    // check there isn't another name column
-    if(findName(name + strlen("name")) != NULL) {
-        die("Found duplicate name column in header\n");
     }
 
     size_t columnCount = 0, nameIndex = 0, startIndex = 0;

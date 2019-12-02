@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
-void die(char* reason);
+#include "util.h"
 
 int name_sort(const void *a, const void *b)
 {

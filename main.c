@@ -3,6 +3,7 @@
 
 #include "parser.h"
 #include "collect.h"
+#include "util.h"
 
 #define INVALID_ERROR "Invalid Input Format"
 
