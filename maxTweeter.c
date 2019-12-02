@@ -14,11 +14,6 @@ typedef struct {
     bool* columnsQuoted;
 } header_info;
 
-tweet_vector getTweets(FILE* fPtr);
-
-void checkLineLength(size_t len);
-bool* getQuotation(char* line);
-
 typedef struct {
     char* name;
     unsigned int count;
@@ -29,24 +24,76 @@ typedef struct {
     size_t length;
 } collected_tweets;
 
+FILE* getFile(char* filePath);
+void die(char* reason);
+tweet_vector getTweets(FILE* fPtr);
+void checkLineLength(size_t len);
+void checkQuotation(char* line, size_t numCols, bool* columnsQuoted);
+header_info readHeaderQuick(char* line);
+void checkDuplicates(char *line);
+char* findName(char* line);
+char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted);
 collected_tweets collectTweets(char** rows, size_t n_rows);
+int name_sort(const void *a, const void *b);
+int compareTweet(const void* a, const void* b);
 
 #define INVALID_ERROR "Invalid Input Format"
 
-/* Prints that there is an invalid error and exits the program
-  */
-void die(char* reason) {
-    #ifdef DEBUG
-    printf("%s", reason);
-    #endif
-    printf(INVALID_ERROR);
-    exit(EXIT_FAILURE);
+/* Strips the newline from a given line.
+  If CSV is created on Windows, it also deletes the
+  carriage return.
+ */
+
+#define STRIP_NEWLINE(s) { size_t l = strlen(s); \
+    if(l > 0 && s[l - 1] == '\n') s[l - 1] = '\0'; \
+    if(l > 1 && s[l - 2] == '\r') s[l - 2] = '\0'; }
+
+
+int main(int argc, char* argv[]) {
+    FILE* csvFile;
+    // Checks for two command line arguments
+    if(argc == 2) {
+        csvFile = getFile(argv[1]);
+    } else {
+        die("Usage: main <csvFile>");
+    }
+
+    // Creates a list of tweets containing rows of tweets
+    tweet_vector rows = getTweets(csvFile);
+    collected_tweets tweets = collectTweets(rows.tweets, rows.length);
+
+    // Free the space allocated for rows of tweets
+    for(size_t i = 0; i < rows.length; i++) {
+      free(rows.tweets[i]);
+    }
+    free(rows.tweets);
+    
+    // Sorts tweeters according to their tweet count
+    qsort(tweets.tweeters, tweets.length, sizeof(tweet_count), compareTweet);
+
+    int top = tweets.length < 10 ? tweets.length : 10;
+
+    // Print out the top tweeters and their tweet counts
+    for(size_t i = 0; i < top; i++) {
+      tweet_count t = tweets.tweeters[i];
+      printf("%s: %d\n", t.name, t.count);
+    }
+
+    for(size_t i = 0; i < tweets.length; i++) {
+      free(tweets.tweeters[i].name);
+    }
+
+    // Free the tweeters and close file
+    if(tweets.tweeters != NULL) free(tweets.tweeters);
+    fclose(csvFile);
+
+    return 0;
 }
 
 /* getFile opens the filePath as a file pointer
   if the file cannot be opened, this function will exit the program
   the return value cannot be null
-*/
+ */
 
 FILE* getFile(char* filePath) {
   FILE* filePtr = fopen(filePath, "r");
@@ -58,15 +105,19 @@ FILE* getFile(char* filePath) {
   return filePtr;
 }
 
+/* Prints that there is an invalid error and exits the program
+  */
+void die(char* reason) {
+    #ifdef DEBUG
+    printf("%s", reason);
+    #endif
+    printf(INVALID_ERROR);
+    exit(EXIT_FAILURE);
+}
 
-
-#define STRIP_NEWLINE(s) { size_t l = strlen(s); \
-    if(l > 0 && s[l - 1] == '\n') s[l - 1] = '\0'; \
-    if(l > 1 && s[l - 2] == '\r') s[l - 2] = '\0'; }
-
-char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted);
-header_info readHeaderQuick(char* line);
-void checkQuotation(char* line, size_t numCols, bool* columnsQuoted);
+/* Gets the tweets given a file pointer.
+  Returns an array of tweets and number of tweets.
+ */
 
 tweet_vector getTweets(FILE* fPtr) {
     // header parsing variables
@@ -131,62 +182,56 @@ tweet_vector getTweets(FILE* fPtr) {
     return names;
 }
 
-char* findName(char* line) {
-    char* name = NULL;
-    while(name = strstr(line, "name")) {
-        size_t start_index = name - line;
-        size_t end_index = start_index + strlen("name");
+/* Checks if the line length is over 1024 characters,
+  if it is then die.
+  */
 
-        if(start_index > 0 && line[start_index - 1 ] == '"') {
-            start_index--;
-            end_index++;    
-        }
-
-        if((start_index == 0 || line[start_index - 1] == ',') && (line[end_index] == ',' || line[end_index] == '\0')) {
-            return name;
-        }
-
-        line = &line[end_index];
+void inline checkLineLength(size_t len) {
+    if (len > 1024) {
+        die("Line is more than 1024 characters long\n");
     }
-    
-    return NULL;    
 }
 
-void checkDuplicates(char *line) {
-    size_t l = strlen(line);
-    char* copy = malloc(sizeof(char) * (l + 1)), *t = copy;
-    strncpy(copy, line, l);
-    copy[l] = '\0';
 
-    size_t index = 0, size = 1;
-    char** columnNames = malloc(sizeof(char*) * size);
+/* Checks if each field in the line is properly quoted
+  based on quotes in the header, and dies if it isn't
+ */
 
-    char* current = NULL;
-    while((current = strsep(&copy, ","))) {
-        size_t l = strlen(current);
-        if(l > 1 && *current == '"') {
-            current[l - 1] = '\0';
-            current++;
-        }
-
-        for(size_t i = 0; i < index; i++) {
-            if(strcmp(current, columnNames[i]) == 0) {
-                die("Duplicate column names");
+void checkQuotation(char* line, size_t numCols, bool* columnsQuoted) {
+    size_t startIndex = 0, colIdx = 0;
+    char c;
+    for (size_t i = 0; i < strlen(line) + 1; i++) {
+        if (line[i] == ',' || line[i] == '\0') {
+            size_t endIndex = i - 1;
+            
+            // check that the field is not ,,
+            if(!(endIndex == -1 || endIndex < startIndex)) {
+                // if the current field is quoted
+                if (line[startIndex] == '\"' && line[endIndex] == '\"' && startIndex != endIndex) {
+                    if (columnsQuoted && (colIdx == numCols || !columnsQuoted[colIdx])) {
+                        die("Current field is quoted but shouldn't be\n");
+                    }
+                } else { // if the current field is not quoted
+                    if (line[startIndex] == '\"' || line[endIndex] == '\"') {
+                        die("Current field has mismatched quotation marks\n");
+                    }
+                    if (columnsQuoted && (colIdx == numCols || columnsQuoted[colIdx])) {
+                        die("Current field isn't quoted but should be\n");
+                    }
+                }
             }
-        }
 
-        columnNames[index++] = current;
-        if(index == size) {
-            columnNames = realloc(columnNames, sizeof(char*) * (2*size + 1));
-            size = 2*size + 1;
+            startIndex = i + 1;
+            colIdx++;
         }
     }
-
-    free(columnNames);
-    free(t);
 }
 
-// assumes checkQuotation has run
+/* Assuming checkQuotation has run, get the number of columns, 
+  name index, and an array of booleans indicating whether the columns 
+  are quoted.
+  */
+
 header_info readHeaderQuick(char* line) {
     // check duplicates
     checkDuplicates(line);
@@ -230,46 +275,72 @@ header_info readHeaderQuick(char* line) {
     return info;
 }
 
+/* Checks the duplicate columns within a line.
+  If duplicates are found, die.
+  */
 
-/* returns true if all values are quoted, false otherwise
-    calls die() if only some are quoted */
+void checkDuplicates(char *line) {
+    size_t l = strlen(line);
+    char* copy = malloc(sizeof(char) * (l + 1)), *t = copy;
+    strncpy(copy, line, l);
+    copy[l] = '\0';
 
-void checkQuotation(char* line, size_t numCols, bool* columnsQuoted) {
-    size_t startIndex = 0, colIdx = 0;
-    char c;
-    for (size_t i = 0; i < strlen(line) + 1; i++) {
-        if (line[i] == ',' || line[i] == '\0') {
-            size_t endIndex = i - 1;
-            
-            // check that the field is not ,,
-            if(!(endIndex == -1 || endIndex < startIndex)) {
-                // if the current field is quoted
-                if (line[startIndex] == '\"' && line[endIndex] == '\"' && startIndex != endIndex) {
-                    if (columnsQuoted && (colIdx == numCols || !columnsQuoted[colIdx])) {
-                        die("Current field is quoted but shouldn't be\n");
-                    }
-                } else { // if the current field is not quoted
-                    if (line[startIndex] == '\"' || line[endIndex] == '\"') {
-                        die("Current field has mismatched quotation marks\n");
-                    }
-                    if (columnsQuoted && (colIdx == numCols || columnsQuoted[colIdx])) {
-                        die("Current field isn't quoted but should be\n");
-                    }
-                }
+    size_t index = 0, size = 1;
+    char** columnNames = malloc(sizeof(char*) * size);
+
+    char* current = NULL;
+    while((current = strsep(&copy, ","))) {
+        size_t l = strlen(current);
+        if(l > 1 && *current == '"') {
+            current[l - 1] = '\0';
+            current++;
+        }
+
+        for(size_t i = 0; i < index; i++) {
+            if(strcmp(current, columnNames[i]) == 0) {
+                die("Duplicate column names");
             }
+        }
 
-            startIndex = i + 1;
-            colIdx++;
+        columnNames[index++] = current;
+        if(index == size) {
+            columnNames = realloc(columnNames, sizeof(char*) * (2*size + 1));
+            size = 2*size + 1;
         }
     }
+
+    free(columnNames);
+    free(t);
 }
 
-void inline checkLineLength(size_t len) {
-    if (len > 1024) {
-        die("Line is more than 1024 characters long\n");
+/* Finds the name of the header, given its line.
+  Returns a copy of the name.
+  */
+
+char* findName(char* line) {
+    char* name = NULL;
+    while(name = strstr(line, "name")) {
+        size_t start_index = name - line;
+        size_t end_index = start_index + strlen("name");
+
+        if(start_index > 0 && line[start_index - 1 ] == '"') {
+            start_index--;
+            end_index++;    
+        }
+
+        if((start_index == 0 || line[start_index - 1] == ',') && (line[end_index] == ',' || line[end_index] == '\0')) {
+            return name;
+        }
+
+        line = &line[end_index];
     }
+    
+    return NULL;    
 }
 
+/* Returns the name of each line, given a line, number of columns, the index
+  of the name, and whether the name should be quoted
+  */
 char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
     size_t i = 0;
     size_t numColsSeen = 0;
@@ -293,11 +364,6 @@ char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
             }
         }
 
-        // ,"a", -> a
-        // ,a", -> INVALID
-        // ,a"a, -> a"a
-        // ,""a"", -> "a"
-        // ,, -> name is an empty string, still counts
         i++;
     }
 
@@ -331,22 +397,9 @@ char* readName(char* line, size_t numCols, size_t nameIndex, bool nameQuoted) {
     return name;
 }
 
-/* Returns the tweet_count (which contains the name and tweet count) 
- with the greater tweet count. Used as a comparator function for qsort()
-*/
-int compareTweet(const void* a, const void* b) {
-  const tweet_count *first = a, *second = b;
-  return second->count - first->count;
-}
-
-
-int name_sort(const void *a, const void *b)
-{
-    return strcmp(*(const char **)a, *(const char **)b);
-}
-
-collected_tweets collectTweets(char **names, size_t n_rows)
-{
+/* Collects the tweets into an array and records the number of tweets
+  */
+collected_tweets collectTweets(char **names, size_t n_rows) {
     // no tweeters
     if (n_rows == 0)
     {
@@ -419,43 +472,20 @@ collected_tweets collectTweets(char **names, size_t n_rows)
     return (collected_tweets){tweeters, index};
 }
 
-int main(int argc, char* argv[]) {
-    FILE* csvFile;
-    // Checks for two command line arguments
-    if(argc == 2) {
-        csvFile = getFile(argv[1]);
-    } else {
-        die("Usage: main <csvFile>");
-    }
+/* Comparator for comparing between two different strings,
+  used in qsort
+  */
 
-    // Creates a list of tweets containing rows of tweets
-    tweet_vector rows = getTweets(csvFile);
-    collected_tweets tweets = collectTweets(rows.tweets, rows.length);
-
-    // Free the space allocated for rows of tweets
-    for(size_t i = 0; i < rows.length; i++) {
-      free(rows.tweets[i]);
-    }
-    free(rows.tweets);
-    
-    // Sorts tweeters according to their tweet count
-    qsort(tweets.tweeters, tweets.length, sizeof(tweet_count), compareTweet);
-
-    int top = tweets.length < 10 ? tweets.length : 10;
-
-    // Print out the top tweeters and their tweet counts
-    for(size_t i = 0; i < top; i++) {
-      tweet_count t = tweets.tweeters[i];
-      printf("%s: %d\n", t.name, t.count);
-    }
-
-    for(size_t i = 0; i < tweets.length; i++) {
-      free(tweets.tweeters[i].name);
-    }
-
-    // Free the tweeters and close file
-    if(tweets.tweeters != NULL) free(tweets.tweeters);
-    fclose(csvFile);
-
-    return 0;
+int name_sort(const void *a, const void *b) {
+    return strcmp(*(const char **)a, *(const char **)b);
 }
+
+/* Returns the tweet_count (which contains the name and tweet count) 
+ with the greater tweet count. Used as a comparator function for qsort()
+*/
+int compareTweet(const void* a, const void* b) {
+  const tweet_count *first = a, *second = b;
+  return second->count - first->count;
+}
+
+
