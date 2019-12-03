@@ -12,8 +12,12 @@ def main():
         elif file.endswith(".csv"):
             other.append(file)
 
-    sp.run(["make", "clean"])
-    sp.run(["make"])
+    if os.path.exists("Makefile"):
+        sp.run(["make", "clean"])
+        sp.run(["make"])
+    else:
+        print("Compiling with gcc...")
+        sp.run(["gcc", "-o", "main", "maxTweeter.c"])
 
     validPass, validFail = runTest(valid, "valid", "SUCCESS, CSV is valid", "FAILED, CSV is invalid")
     invalidPass, invalidFail = runTest(invalid, "invalid", "SUCCESS, CSV is invalid", "FAILED, CSV is valid")
