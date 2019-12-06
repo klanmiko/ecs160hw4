@@ -1,5 +1,4 @@
 validmediumrandom.csv   72
 1.csv   29
 2.csv   93
-"./a.out"   68
-"./a.out <invalid>" 68
+"./a.out <nonexistent file>"    68
